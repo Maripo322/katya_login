@@ -136,8 +136,8 @@ class MainWindow(QMainWindow):
         self.toolbar.addWidget(self.auth_button)
         
         self.results_button = QPushButton("Результаты")
+        self.results_button.setStyleSheet("padding: 5px 15px;")
         self.results_button.clicked.connect(self.show_results)
-        self.results_button.hide()
         self.toolbar.addWidget(self.results_button)
 
     def _init_ui(self):
@@ -171,6 +171,7 @@ class MainWindow(QMainWindow):
             item.setSizeHint(QSize(180, 40))
             self.menu.addItem(item)
             self.content.addWidget(widget)
+            widget.main_window = self
         
         self.stack.addWidget(main_widget)
 

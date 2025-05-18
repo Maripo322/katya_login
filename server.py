@@ -24,11 +24,10 @@ cursor.execute('''
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS test_results (
         id TEXT PRIMARY KEY,
-        user_id TEXT,
+        user_name TEXT,
         test_name TEXT,
         score REAL,
-        date TEXT,
-        FOREIGN KEY(user_id) REFERENCES users(id)
+        date TEXT
     )
 ''')
 conn.commit()
@@ -66,11 +65,13 @@ def authenticate_user(username: str, password: str):
         return None
     return user
 
-def create_test_result(user_id: str, test_result: TestResultCreate):
+def create_test_result(username: str, test_result: TestResultCreate):
     result_id = str(uuid.uuid4())
     date = datetime.now().isoformat()
-    cursor.execute('INSERT INTO test_results (id, user_id, test_name, score, date) VALUES (?, ?, ?, ?, ?)',
-                   (result_id, user_id, test_result.test_name, test_result.score, date))
+    cursor.execute(
+        'INSERT INTO test_results (id, user_name, test_name, score, date) VALUES (?, ?, ?, ?, ?)',
+        (result_id, username, test_result.test_name, test_result.score, date)
+    )
     conn.commit()
     return result_id
 
@@ -102,11 +103,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @app.post("/results")
 async def save_test_result(result: TestResultCreate, token: str = Depends(oauth2_scheme)):
-    cursor.execute('SELECT role FROM users WHERE id = ?', (token,))
+    cursor.execute('SELECT username, role FROM users WHERE id = ?', (token,))
     user = cursor.fetchone()
-    if not user or user[0] != 'student':
+    if not user or user[1] != 'student':
         raise HTTPException(status_code=403, detail="Only students can save results")
-    create_test_result(token, result)
+    
+    create_test_result(user[0], result)  # user[0] содержит username
     return {"message": "Result saved successfully"}
 
 @app.get("/results", response_model=List[dict])
@@ -115,7 +117,15 @@ async def get_results(token: str = Depends(oauth2_scheme)):
     user = cursor.fetchone()
     if not user or user[0] != 'teacher':
         raise HTTPException(status_code=403, detail="Only teachers can view results")
-    return [{"test_name": r[0], "username": r[1], "score": r[2], "date": r[3]} for r in get_all_test_results()]
+    
+    # Теперь получаем username прямо из таблицы результатов
+    cursor.execute('SELECT test_name, user_name, score, date FROM test_results')
+    return [{
+        "test_name": r[0],
+        "username": r[1],
+        "score": r[2],
+        "date": r[3]
+    } for r in cursor.fetchall()]
 
 @app.get("/me")
 async def get_current_user(token: str = Depends(oauth2_scheme)):

@@ -109,19 +109,30 @@ class TestsWidget(QWidget):
             if selected == correct:
                 correct_count += 1
                 buttons[selected].setStyleSheet("background-color: #e6ffe6; border: 2px solid #4CAF50;")
-            if hasattr(self, 'main_window') and self.main_window.current_token and self.main_window.user_role == 'student':
+            else:
+                buttons[selected].setStyleSheet("background-color: #ffe6e6; border: 2px solid #f44336;")
+                buttons[correct].setStyleSheet("background-color: #e6ffe6; border: 2px solid #4CAF50;")
+        
+        # Код сохранения результатов (обновленный)
+        if self.main_window.current_token and self.main_window.user_role == 'student':
+            try:
                 test_name = self.test_combo.currentData()
                 score = (correct_count / total) * 100 if total > 0 else 0
-                try:
-                    response = requests.post(
-                        "http://localhost:8000/results",
-                        json={"test_name": test_name, "score": score},
-                        headers={"Authorization": f"Bearer {self.main_window.current_token}"}
-                    )
-                    if response.status_code != 200:
-                        QMessageBox.warning(self, "Ошибка", "Не удалось сохранить результат")
-                except Exception as e:
-                    QMessageBox.critical(self, "Ошибка", f"Ошибка соединения: {str(e)}")
+                
+                response = requests.post(
+                    "http://localhost:8000/results",
+                    json={"test_name": test_name, "score": score},
+                    headers={"Authorization": f"Bearer {self.main_window.current_token}"}
+                )
+                
+                if response.status_code == 200:
+                    QMessageBox.information(self, "Успех", "Результат сохранен!")
+                else:
+                    QMessageBox.warning(self, "Ошибка", 
+                        f"Ошибка сохранения: {response.status_code}\n{response.text}")
+                    
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Ошибка соединения: {str(e)}")
             else:
                 buttons[selected].setStyleSheet("background-color: #ffe6e6; border: 2px solid #f44336;")
                 buttons[correct].setStyleSheet("background-color: #e6ffe6; border: 2px solid #4CAF50;")
